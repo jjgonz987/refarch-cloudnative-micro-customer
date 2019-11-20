@@ -1,0 +1,139 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    app: customer
+    chart: customer-0.6.0
+    heritage: Tiller
+    release: bluecompute
+    tier: backend
+    version: v1
+  name: customer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: customer
+      chart: customer-0.6.0
+      heritage: Tiller
+      release: bluecompute
+      tier: backend
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: customer
+        chart: customer-0.6.0
+        heritage: Tiller
+        release: bluecompute
+        tier: backend
+        version: v1
+    spec:
+      containers:
+      - env:
+        - name: SERVICE_PORT
+          value: "8082"
+        - name: JAVA_TMP_DIR
+          value: /spring-tmp
+        - name: COUCHDB_HOST
+          value: customer-couchdb-svc-couchdb
+        - name: COUCHDB_PROTOCOL
+          value: http
+        - name: COUCHDB_PORT
+          value: "5985"
+        - name: COUCHDB_DATABASE
+          value: customers
+        - name: COUCHDB_USER
+          valueFrom:
+            secretKeyRef:
+              key: adminUsername
+              name: customer-couchdb-secret
+        - name: COUCHDB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: adminPassword
+              name: customer-couchdb-secret
+        - name: HS256_KEY
+          valueFrom:
+            secretKeyRef:
+              key: key
+              name: bluecompute-hs256key
+        image: ibmcase/bluecompute-customer:0.6.0
+        imagePullPolicy: Always
+        livenessProbe:
+          failureThreshold: 6
+          httpGet:
+            path: /health
+            port: 8092
+            scheme: HTTP
+          initialDelaySeconds: 35
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 1
+        name: customer
+        ports:
+        - containerPort: 8082
+          protocol: TCP
+        readinessProbe:
+          failureThreshold: 6
+          httpGet:
+            path: /health
+            port: 8092
+            scheme: HTTP
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
+        resources:
+          limits:
+            memory: 384Mi
+          requests:
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsUser: 2000
+        volumeMounts:
+        - mountPath: /spring-tmp
+          name: spring-tmp
+      initContainers:
+      - command:
+        - /bin/bash
+        - -c
+        - until curl --max-time 1 ${COUCHDB_PROTOCOL}://${COUCHDB_USER}:${COUCHDB_PASSWORD}@${COUCHDB_HOST}:${COUCHDB_PORT};
+          do echo waiting for couchdb; /bin/sleep 1; done
+        env:
+        - name: COUCHDB_HOST
+          value: customer-couchdb-svc-couchdb
+        - name: COUCHDB_PROTOCOL
+          value: http
+        - name: COUCHDB_PORT
+          value: "5985"
+        - name: COUCHDB_DATABASE
+          value: customers
+        - name: COUCHDB_USER
+          valueFrom:
+            secretKeyRef:
+              key: adminUsername
+              name: customer-couchdb-secret
+        - name: COUCHDB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              key: adminPassword
+              name: customer-couchdb-secret
+        image: ibmcase/bluecompute-bash-curl-ssl:latest
+        imagePullPolicy: Always
+        name: test-couchdb
+        resources:
+          limits:
+            memory: 384Mi
+          requests:
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsUser: 2000
+      volumes:
+      - emptyDir:
+          medium: Memory
+        name: spring-tmp
