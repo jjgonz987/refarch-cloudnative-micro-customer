@@ -2,6 +2,9 @@ package customer;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.security.SecurityProperties;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -16,13 +19,40 @@ import org.springframework.security.oauth2.provider.token.DefaultTokenServices;
 import org.springframework.security.oauth2.provider.token.TokenStore;
 import org.springframework.security.oauth2.provider.token.store.JwtAccessTokenConverter;
 import org.springframework.security.oauth2.provider.token.store.JwtTokenStore;
+import java.io.IOException;
+import org.apache.commons.io.IOUtils;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import org.apache.commons.io.IOUtils;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.oauth2.config.annotation.web.configuration.EnableResourceServer;
+import org.springframework.security.oauth2.config.annotation.web.configuration.ResourceServerConfigurerAdapter;
+import org.springframework.security.oauth2.config.annotation.web.configurers.ResourceServerSecurityConfigurer;
+import org.springframework.security.oauth2.provider.token.DefaultTokenServices;
+import org.springframework.security.oauth2.provider.token.TokenStore;
+import org.springframework.security.oauth2.provider.token.store.JwtAccessTokenConverter;
+import org.springframework.security.oauth2.provider.token.store.JwtTokenStore;
 
 import customer.config.JwtConfig;
 
+@EnableResourceServer
 @Configuration
 @EnableWebSecurity
-@EnableResourceServer
-public class OAuth2ResourceServerConfig extends ResourceServerConfigurerAdapter {
+@EnableConfigurationProperties(SecurityProperties.class)
+
+@SpringBootApplication
+
+public class OAuth2ResourceServerConfig extends ResourceServerConfigurerAdapter  {
+
+
+
+
+
+
     @Autowired
     private JwtConfig securityConfig;
     
@@ -47,23 +77,28 @@ public class OAuth2ResourceServerConfig extends ResourceServerConfigurerAdapter 
             .and()
             .exceptionHandling().accessDeniedHandler(new OAuth2AccessDeniedHandler());
     }
-    
+ 
     @Bean
     @Qualifier("tokenStore")
     protected TokenStore tokenStore() {
-        return new JwtTokenStore(jwtAccessTokenConverter());
+        //return new JwtTokenStore(jwtAccessTokenConverter());
+        return new JwtTokenStore(accessTokenConverter());
+
     }
-    
+
     @Bean
-    @Qualifier("jwtAccessTokenConverter")
-	protected JwtAccessTokenConverter jwtAccessTokenConverter() {
-		final JwtAccessTokenConverter converter = new JwtAccessTokenConverter();
-	   
-		/* for HS256, set the signing key */
-		converter.setSigningKey(securityConfig.getSharedSecret());
-		
-		return converter;
+    @Qualifier("accessTokenConverter")
+	protected  JwtAccessTokenConverter accessTokenConverter()
+    {
+
+
+        final JwtAccessTokenConverter converter = new JwtAccessTokenConverter();
+        converter.setSigningKey(securityConfig.getSharedSecret());
+        return converter;
 	}
+
+
+
      
     @Bean
     @Primary
@@ -71,5 +106,6 @@ public class OAuth2ResourceServerConfig extends ResourceServerConfigurerAdapter 
         final DefaultTokenServices defaultTokenServices = new DefaultTokenServices();
         defaultTokenServices.setTokenStore(tokenStore());
         return defaultTokenServices;
+
     }
 }

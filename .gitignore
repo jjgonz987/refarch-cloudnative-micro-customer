@@ -49,3 +49,5 @@ chart/customer/requirements.lock
 
 # Ignore test YAML files
 *.yaml.test
+/.sts4-cache/classpath-data.json
+/output.txt
